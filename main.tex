@@ -43,7 +43,7 @@
     \begin{alertblock}{注意}
         DDX 仅在 XFree86 X 服务器下适用。
     \end{alertblock}
-    DDX 实现了 X11 中，与硬件相关的部分加速特性。
+    显示相关的 DDX 实现了 X11 中，与硬件相关的部分加速特性。
     \begin{block}{DDX 实现的特性举例}
         \begin{itemize}
             \item DRI 认证/缓冲分配（对于 X 客户端调用图形加速所必须）
@@ -115,16 +115,105 @@
 
 \begin{frame}
     \frametitle{DDX：其他}
+    其他许多开源驱动同样也都有对应的 DDX：
+    \begin{itemize}
+        \item xf86-video-intel
+        \item xf86-video-ati
+        \item xf86-video-amdgpu
+        \item xf86-video-nouveau
+    \end{itemize}
+    特异 DDX 的主要意义是 2D 加速。
 \end{frame}
 
-\section{闭源 GPU 驱动适配问题}
+\section{厂商 GPU 驱动适配问题}
 
 \begin{frame}
-    \frametitle{内核驱动：如何闭源？}
+    \frametitle{闭源内核驱动：也是一件精细活}
+    \begin{block}{众所周知}
+        Linux 内核不维护内核内部 API 的稳定性。\\
+        内核会检查 .ko 文件中的版本信息，并会拒绝不匹配的 .ko 文件。
+    \end{block}
+    发行闭源驱动的方式：
+    \begin{itemize}
+        \item 直接丢 .ko 出去——被三体人锁死对应的内核二进制，需要和发行版发布内核的过程同步
+        \item 将重要文件编译成 .o 发布——由于内核 API 不稳定，这些文件中对内核 API 的调用依然不保证能跨内核版本可用
+        \item 同上，但精心设计 .o 的导入/导出接口——这种情况能够构造出可以跨内核版本的闭源驱动
+    \end{itemize}
 \end{frame}
 
 \begin{frame}
-    \frametitle{API 实现库：桌面 GL 之殇}
+    \frametitle{闭源内核驱动：许可证问题}
+    \begin{block}{众所周知}
+        Linux 内核使用 GPLv2 授权，有授权传递性问题。
+    \end{block}
+    虽然闭源驱动并未被 Linux 赶尽杀绝，但它们的生存环境依然十分艰难……\\
+    \begin{block}{EXPORT\_SYMBOL\_GPL}
+        Linux 内核将大量接口以 EXPORT\_SYMBOL\_GPL 这个宏导出，而这样的接口将只能被元数据中声明 GPL 兼容许可证的模块调用。
+    \end{block}
+\end{frame}
+
+\begin{frame}
+    \frametitle{闭源内核驱动：接口限制来源}
+    Linux 内核中的 GPL 符号限制源于 GPL 中 \textit{derivative work} 的概念；调用限制 GPL 符号的模块被认为需要被传递 GPL ，所以禁止非 GPL 兼容许可证的模块调用。\\
+    一般来说， GPL 符号限制应用于 Linux 中一些较有特色的子系统（虽然此方面并无明确标准）。
+\end{frame}
+
+\begin{frame}
+    \frametitle{闭源内核驱动：观赏厂商的表演}
+    为了绕过 Linux 内核所做的限制，各种闭源 GPU 驱动厂商采用了例如下面这些计策：\\
+    \begin{labeling}{和平共处}
+        \item [和平共处] 基于内核允许闭源模块调用的接口苦苦编写驱动
+        \item [掩耳盗铃] 在内核模块元数据中声明 GPL ，即便给出的驱动包含闭源部分
+        \item [画地为牢] 编写额外的声明为 GPL 的内核模块作为闭源代码的包装
+    \end{labeling}
+\end{frame}
+
+\begin{frame}
+    \frametitle{闭源内核驱动：绕过手段真的合理吗？}
+    \begin{block}{掩耳盗铃}
+        当分发这一“声称为 GPL”的内核模块时，如何满足 GPL 对源码的要求呢？
+    \end{block}
+    \begin{block}{画地为牢}
+        此方法已失效：内核版本 5.9 起，Linux 内核将引用非 GPL 兼容模块的模块亦作为非 GPL 兼容模块看待，从而无法使用仅 GPL 符号。\\
+        Greg Kroah-Hartman 锐评：
+        \begin{quote}
+            Ah, the proven-to-be-illegal "GPL Condom" defense :)
+        \end{quote}
+    \end{block}
+\end{frame}
+
+\begin{frame}
+    \frametitle{内核驱动：那为什么要闭源呢？}
+    \begin{block}{嵌入式 GPU}
+        嵌入式 GPU 的通常做法是开源（并在芯片 BSP 中附带）的内核驱动配合闭源的用户空间驱动。\\
+        ARM Mali GPU 同时在他们的开发者网站上公开提供未适配特定 SoC 的内核驱动以作为参考。
+    \end{block}
+    \begin{block}{NVIDIA 的 open-gpu-kernel-modules}
+        自 Turing （GeForce 系列对应 RTX20/GTX16）起，NVIDIA 在 GPU 中嵌入了 GSP 处理器，从而能够将需要保密的逻辑移动到 GSP 固件中，而内核驱动本身则不必闭源。
+    \end{block}
+\end{frame}
+
+\begin{frame}
+    \frametitle{API 实现库：我 libGL/libGLESv2 呢？}
+\end{frame}
+
+\begin{frame}
+    \frametitle{API 实现库：奇技淫巧之侵入 Mesa}
+\end{frame}
+
+\begin{frame}
+    \frametitle{API 实现库：ICD (Installable Client Driver)}
+\end{frame}
+
+\begin{frame}
+    \frametitle{API 实现库：来自移动端的小小震撼}
+\end{frame}
+
+\begin{frame}
+    \frametitle{DDX：快跑！}
+    \begin{alertblock}{TL;DR}
+        为了 Wayland 化的将来考虑，在现代 GPU 的新的驱动上请勿使用 DDX 。
+    \end{alertblock}
 \end{frame}
 
 \end{document}
