@@ -1,6 +1,8 @@
 \documentclass{ctexbeamer}
 \usetheme{Berlin}
 
+\usepackage{scrextend}
+
 \title{GPU 驱动的发行版适配}
 \author{Icenowy Zheng}
 \institute{PLCT 实验室}
@@ -14,33 +16,105 @@
 
 \begin{frame}
     \frametitle{内核驱动}
-
+    \begin{block}{众所周知}
+        只有内核才有直接访问硬件的权限——所谓“用户空间驱动”的存在永远基于内核提供的框架。
+    \end{block}
+    \begin{itemize}
+        \item 显示管线的配置
+        \item 显存管理
+        \item GPU 任务的提交
+        \item 提供额外特性的接口（如硬件编解码等）
+    \end{itemize}
 \end{frame}
 
 \begin{frame}
-    \frametitle{图形 API 实现}
+    \frametitle{API 实现库}
+    \begin{labeling}{通用计算}
+        \item [3D 渲染] OpenGL ES/OpenGL/Vulkan
+        \item [2D 渲染] OpenVG （及 3D 渲染库）
+        \item [资源管理] GBM/EGL
+        \item [硬件解码] VA-API/VDPAU/NV\{ENC,DEC\}
+        \item [通用计算] OpenCL/Vulkan/CUDA
+    \end{labeling}
 \end{frame}
 
 \begin{frame}
-    \frametitle{（可选）DDX （设备依赖的 X 服务器部分）}
+    \frametitle{（可选）DDX （Device-Dependent X）}
+    \begin{alertblock}{注意}
+        DDX 仅在 XFree86 X 服务器下适用。
+    \end{alertblock}
+    DDX 实现了 X11 中，与硬件相关的部分加速特性。
+    \begin{block}{DDX 实现的特性举例}
+        \begin{itemize}
+            \item DRI 认证/缓冲分配（对于 X 客户端调用图形加速所必须）
+            \item Xv 叠加层、XRender 2D 加速等特异性加速
+        \end{itemize}
+    \end{block}
 \end{frame}
 
 \begin{frame}
     \frametitle{（可选）实用工具}
+    八仙过海，各显神通。
+    \begin{block}{举例}
+        \begin{labeling}{状态监测类}
+            \item [状态监测类] rocm-smi, nvidia-smi
+            \item [性能分析类] rocprof, nvprof
+        \end{labeling}
+    \end{block}
 \end{frame}
 
 \section{开源 GPU 驱动的组成}
 
 \begin{frame}
-    \frametitle{内核接口：FrameBuffer 和 DRM (Direct Rendering Manager)}
+    \frametitle{内核接口：FBDEV}
+    \begin{alertblock}{注意：已废弃}
+        内核 FBDEV 子系统已废弃，将不会接受新设备驱动支持；DRM 设备仍可提供 FBDEV 兼容设备节点。
+    \end{alertblock}
+    真·亮机接口。\\
+    仅支持 2D 显示一个简单的 Framebuffer ，没有任何现代化的加速功能。\\
+    现在仍旧提供的一大原因是 FBCON 。
 \end{frame}
 
 \begin{frame}
-    \frametitle{图形 API 实现：Mesa}
+    \frametitle{内核接口：DRM (Direct Rendering Manager)}
+    最早为了 3D 渲染加速创造的接口；\\
+    后来随着 KMS 的引入，也开始能控制显示；\\
+    目前开源显示和 GPU 驱动的金标准。\\
+    \begin{block}{不同驱动间的接口差异}
+        DRM 驱动的 KMS 部分基本是标准化的（虽然允许扩展）；但是显存管理、任务管理等均为驱动私有 ioctl 接口，由各个驱动自行定义。
+    \end{block}
 \end{frame}
 
 \begin{frame}
-    \frametitle{DDX：xf86-video-modesetting 和其他}
+    \frametitle{API 实现库：Mesa}
+    以一个软件的类 OpenGL\textregistered 实现开局；\\
+    后来获得了 DRI 的加成，能够使用图形硬件；\\
+    再后来有了 Gallium ，能够让不同驱动之间共享大量基础设施；\\
+    时至今日，支持的 API 不断扩张，支持了：\\
+    \begin{itemize}
+        \item GBM/GLX/EGL
+        \item OpenGL (ES 和桌面)/Vulkan
+        \item OpenCL
+        \item VA-API/VDPAU
+        \item 以及其他……
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \frametitle{DDX：xf86-video-modesetting}
+    “那个”通用的 DDX 。\\
+    现已成为 X.Org Server 代码库的一部分。\\
+    基于通用的 API 实现：\\
+    \begin{itemize}
+        \item DRM KMS 内核接口：实现显示管理、Vsync
+        \item GBM：实现显存管理
+        \item OpenGL (ES)：实现 2D 加速（含 2D 渲染加速和视频叠加）
+    \end{itemize}
+    其中基于 OpenGL (ES) 实现 X11 2D 加速的模块被称为 Glamor 。
+\end{frame}
+
+\begin{frame}
+    \frametitle{DDX：其他}
 \end{frame}
 
 \section{闭源 GPU 驱动适配问题}
@@ -50,7 +124,7 @@
 \end{frame}
 
 \begin{frame}
-    \frametitle{图形 API 实现：桌面 GL 之殇}
+    \frametitle{API 实现库：桌面 GL 之殇}
 \end{frame}
 
 \end{document}
