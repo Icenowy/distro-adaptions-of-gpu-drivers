@@ -226,7 +226,10 @@
 
 \begin{frame}
     \frametitle{API 实现库：奇技淫巧之侵入 Mesa}
-    TODO
+    因为历史原因，Mesa 内部也不是一块钢板——它内部有一个 DRI 接口，提供 *\_dri.so 动态文件供 X 服务器实现 AIGLX 。\\
+    部分闭源驱动，为了避免替换 Mesa 的库文件，选择提供一个接入 DRI 接口的库文件。\\
+    然而很不幸的是，随着 Mesa 之外的 DRI 接口使用逐渐消亡，DRI 接口也逐渐转向 Mesa 内部接口；而且 DRI 接口从未得到妥善的、公共的文档。\\
+    也就是说，使用 DRI 接口是一种未定义且将来很可能失效的操作。
 \end{frame}
 
 \begin{frame}
@@ -244,15 +247,32 @@
 
 \begin{frame}
     \frametitle{API 实现库：没有桌面 GL 的世界}
-    移动端 GPU 驱动的一个通病是：没有桌面版 GL 实现。\\
-    然而很不幸的是，现如今的 Linux 桌面可 GLES 化程度仍然不足：\\
-    \begin{labeling}{wxWidgets 程序}
-        \item [wxWidgets 程序]
-    \end{labeling}
+    \begin{block}{移动端 GPU 驱动的通病}
+        没有桌面版 GL 实现。
+    \end{block}
+    此类情况下，通常需要系统为仅使用 GLES 而进行适配。 \\
+    部分应用程序（如 KWin）和库（如 Qt）在编译时可以选择使用 GLES ，而部分库（如 wxWidgets）并不具有可用的 GLES 实现。\\
+    \begin{block}{GL4ES}
+        GL4ES 是一个在 GLES 上部分实现桌面 GL API 的包装库；但是很不幸的，它的 Shader 翻译器过于幼稚，以至于大量应用程序无法运行/需要特别适配……
+    \end{block}
 \end{frame}
 
 \begin{frame}
-    \frametitle{API 实现库：}
+    \frametitle{API 实现库：Zink，是救赎还是画饼？}
+    Vulkan，作为一种理论上比 GL 更底层的图形 API ，可以在其上实现 GL ——事实上 Mesa 目前包括在 Vulkan 基础上实现 GL 的驱动 Zink 。\\
+    非常不幸的是，移动端 GPU 驱动的 Vulkan 实现通常不好，在桌面 Linux 上表现尤其差……\\
+    \begin{block}{某模拟器开发团队锐评}
+        \begin{quote}
+            It is obvious that only 4 vendors have the expertise and the commitment to make Vulkan drivers work: NVIDIA, AMD, and Mesa, with a special mention for Intel, who recently stepped up their game.
+        \end{quote}
+    \end{block}
+\end{frame}
+
+\begin{frame}
+    \frametitle{API 实现库：同样的痛苦，但这次是编解码}
+    Android 采用的编解码 API 是 OpenMAX （以下简称 OMX ），很不幸地，这一 API 在 Linux 桌面下应用甚少——Linux 桌面下主要使用的是 VA-API/VDPAU 。\\
+    GStreamer 可以提供对 OMX 的支持，但是很不幸的，大多数多媒体应用软件并不支持 OMX 。\\
+    更加糟糕的消息是，并没有可用的 API 转换层能够将 OMX 的驱动转接到 VA-API/VDPAU……
 \end{frame}
 
 \section{DDX}
@@ -260,13 +280,31 @@
 \begin{frame}
     \frametitle{DDX：快跑！}
     \begin{alertblock}{TL;DR}
-        为了 Wayland 化的将来考虑，在现代 GPU 的新的驱动上请勿使用 DDX 。
+        为了 Wayland 化的将来考虑，理论上，新的 GPU 驱动不应当使用 DDX 。
     \end{alertblock}
+    DDX 仅是 XFree86 X 服务器的一部分；也就是说，非 X11 的场景下 DDX 起不到丝毫作用。而且，用于 Wayland 的 X11 兼容的 Xwayland 服务器同样不支持 DDX ，而是直接调用 Glamor 。
 \end{frame}
 
 \begin{frame}
     \frametitle{DDX：没有了会怎么样？}
+    但是很不幸地是，当下 xf86-video-modesetting / Glamor 亦可能遇到各种问题：
+    \begin{itemize}
+        \item 已在 X 服务器 master 得到修复的问题（尚未发版）： modesetting DDX 缺乏双缓冲支持，性能不足时可能出现撕裂；Glamor 对 GLES 的支持有问题，会导致颜色不正确（蓝色变成黄色）。
+        \item Glamor 原理导致的问题： Glamor 大量依赖于 GL 中的 FBO （甚至显示缓冲区本身是用 EGLImage 导入并创建为 FBO 的），对于驱动程序 FBO 处理有着很高的要求，在不完善的驱动程序上可能出现性能问题甚至渲染正确性问题。
+    \end{itemize}
 \end{frame}
 
+\begin{frame}
+    \frametitle{DDX：ABI 版本号}
+    对于试图以闭源方式提供 DDX 模块的人来说，还有一个额外的噩耗：\\
+    DDX 作为 XFree86 X 服务器的内部细节，并不保证 X 服务器大版本之间接口稳定——事实上当下 master 分支的 X 服务器已经具有了和 21.1 分支不同的 ABI 版本号 （26 vs 25）。
+\end{frame}
+
+\part{结语与展望}
+\frame{\partpage}
+
+\begin{frame}
+    \frametitle{}
+\end{frame}
 
 \end{document}
