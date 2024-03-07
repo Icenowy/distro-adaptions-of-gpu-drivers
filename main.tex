@@ -12,7 +12,8 @@
 
 \frame{\titlepage}
 
-\section{从底向上看 GPU 驱动}
+\part{从底向上看 GPU 驱动}
+\frame{\partpage}
 
 \begin{frame}
     \frametitle{内核驱动}
@@ -63,7 +64,10 @@
     \end{block}
 \end{frame}
 
-\section{开源 GPU 驱动的组成}
+\part{开源 GPU 驱动的组成}
+\frame{\partpage}
+
+\section{内核接口}
 
 \begin{frame}
     \frametitle{内核接口：FBDEV}
@@ -85,6 +89,8 @@
     \end{block}
 \end{frame}
 
+\section{API 实现库}
+
 \begin{frame}
     \frametitle{API 实现库：Mesa}
     以一个软件的类 OpenGL\textregistered 实现开局；\\
@@ -99,6 +105,8 @@
         \item 以及其他……
     \end{itemize}
 \end{frame}
+
+\section{DDX}
 
 \begin{frame}
     \frametitle{DDX：xf86-video-modesetting}
@@ -125,7 +133,10 @@
     特异 DDX 的主要意义是 2D 加速。
 \end{frame}
 
-\section{厂商 GPU 驱动适配问题}
+\part{厂商 GPU 驱动适配问题}
+\frame{\partpage}
+
+\section{内核驱动}
 
 \begin{frame}
     \frametitle{闭源内核驱动：也是一件精细活}
@@ -194,20 +205,57 @@
 \end{frame}
 
 \begin{frame}
-    \frametitle{API 实现库：我 libGL/libGLESv2 呢？}
+    \frametitle{内核驱动：警惕无序开发 /dev 的行为}
+    另外值得注意的是，很多厂商驱动会在标准的 /dev/fbX 和 /dev/dri/ 之外，创建额外的私有设备节点。\\
+    请注意这些私有设备节点的权限，未正确配置可能导致仅 root 用户可以利用 GPU。\\
+    编写额外 Udev 规则可以配置这些设备节点的权限，一般来说归属于 root:video 且权限 660 。
+\end{frame}
+
+\section{API 实现库}
+
+\begin{frame}
+    \frametitle{API 实现库：李代桃僵}
+    部分厂商驱动直接提供了替换的 lib\{GL,EGL,GLESv2,gbm\}.so 库文件；例如， NVIDIA 的 340.xx 旧卡驱动。\\
+    这种替换系统库文件的厂商驱动危害如下：\\
+    \begin{labeling}{污染二进制文件}
+        \item [污染包管理器] 若不通过包管理器安装，则有驱动被覆盖之虞；若通过包管理安装，则需要打包时引入替换机制。
+        \item [污染二进制文件] 链接可执行文件时，覆盖的系统动态库可能污染可执行文件 ABI 。
+        \item [无法共存] 由于替换了库文件，多个这类驱动显然无法共存。
+    \end{labeling}
 \end{frame}
 
 \begin{frame}
     \frametitle{API 实现库：奇技淫巧之侵入 Mesa}
+    TODO
 \end{frame}
 
 \begin{frame}
-    \frametitle{API 实现库：ICD (Installable Client Driver)}
+    \frametitle{API 实现库：ICD (Installable Client Driver) 革命}
+    首先定义于 OpenCL 扩展 cl\_khr\_icd ，并被 Vulkan 所继承；类似的机制之后被 NVIDIA 实现于 GL(ES) ，则是 GLVND 。\\
+    ICD 机制下，API 实现与接口得到了分离，应用程序链接到 ICD 加载器库，具体驱动程序则在运行时被选择并加载。\\
+    ICD 驱动程序的安装过程，则是简单的放置一个 json 配置文件和配置文件中对应名称的动态库文件。
 \end{frame}
 
 \begin{frame}
     \frametitle{API 实现库：来自移动端的小小震撼}
+    现如今，几乎所有 non-x86 SoC 的渲染/解码子系统和一些新兴厂商的 PCIe GPU ，均采用了某些在移动端更为流行的 GPU IP （Imagination PowerVR ， ARM Mali ， VeriSilicon Vivante 等）。\\
+    非常不幸地，由于这些 GPU IP 现阶段的市场主要在移动端（尤其 Android ），其 API 实现情况大大受移动端生态影响……
 \end{frame}
+
+\begin{frame}
+    \frametitle{API 实现库：没有桌面 GL 的世界}
+    移动端 GPU 驱动的一个通病是：没有桌面版 GL 实现。\\
+    然而很不幸的是，现如今的 Linux 桌面可 GLES 化程度仍然不足：\\
+    \begin{labeling}{wxWidgets 程序}
+        \item [wxWidgets 程序]
+    \end{labeling}
+\end{frame}
+
+\begin{frame}
+    \frametitle{API 实现库：}
+\end{frame}
+
+\section{DDX}
 
 \begin{frame}
     \frametitle{DDX：快跑！}
@@ -215,5 +263,10 @@
         为了 Wayland 化的将来考虑，在现代 GPU 的新的驱动上请勿使用 DDX 。
     \end{alertblock}
 \end{frame}
+
+\begin{frame}
+    \frametitle{DDX：没有了会怎么样？}
+\end{frame}
+
 
 \end{document}
