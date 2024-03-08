@@ -172,8 +172,8 @@
 \begin{frame}
     \frametitle{闭源内核驱动：观赏厂商的表演}
     为了绕过 Linux 内核所做的限制，各种闭源 GPU 驱动厂商采用了例如下面这些计策：\\
-    \begin{labeling}{和平共处}
-        \item [和平共处] 基于内核允许闭源模块调用的接口苦苦编写驱动
+    \begin{labeling}{计无付之}
+        \item [计无付之] 基于内核允许闭源模块调用的接口苦苦编写驱动
         \item [掩耳盗铃] 在内核模块元数据中声明 GPL ，即便给出的驱动包含闭源部分
         \item [画地为牢] 编写额外的声明为 GPL 的内核模块作为闭源代码的包装
     \end{labeling}
@@ -194,7 +194,7 @@
 \end{frame}
 
 \begin{frame}
-    \frametitle{内核驱动：何不试试开源？}
+    \frametitle{内核驱动：开源与闭源的微妙平衡}
     \begin{block}{嵌入式 GPU}
         嵌入式 GPU 的通常做法是开源（并在芯片 BSP 中附带）的内核驱动配合闭源的用户空间驱动。\\
         ARM Mali GPU 同时在他们的开发者网站上公开提供未适配特定 SoC 的内核驱动以作为参考。
