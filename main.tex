@@ -3,7 +3,7 @@
 
 \usepackage{scrextend}
 
-\title{GPU 驱动的发行版适配}
+\title{GPU 驱动的 Linux 桌面发行版适配}
 \author{Icenowy Zheng}
 \institute{PLCT 实验室}
 \date{2023-03-17}
@@ -304,7 +304,25 @@
 \frame{\partpage}
 
 \begin{frame}
-    \frametitle{}
+    \frametitle{驱动适配总结}
+    \begin{labeling}{用户空间驱动}
+        \item [内核驱动] 两条路：封装核心代码为 .o 文件/直接开源（带固件）
+        \item [用户空间驱动] 感恩的心，感谢 ICD 机制，GL 驱动是时候适配 GLVND 了；纯 GLES 驱动仍然是修罗场
+        \item [DDX] 不该有，但现阶段很多时候又不得不有的东西
+    \end{labeling}
+    \hfill \break
+    一言蔽之：摸着 NVIDIA 过河。
+\end{frame}
+
+\begin{frame}
+    \frametitle{展望与许愿}
+    能支持开源驱动的话，那是最棒的了！
+    不过，如果条件不允许的话：
+    \begin{itemize}
+        \item 至少开源内核驱动
+        \item 至少给图形库适配 GLVND 并适配桌面 GL（或妥善适配 Vulkan ）
+        \item 至少做好 Glamor 优化
+    \end{itemize}
 \end{frame}
 
 \end{document}
