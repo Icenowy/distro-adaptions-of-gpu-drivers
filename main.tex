@@ -12,12 +12,22 @@
 
 \frame{\titlepage}
 
+\begin{frame}
+    \frametitle{内容大纲}
+    \begin{itemize}
+        \item 从底向上看 GPU 驱动
+        \item 开源 GPU 驱动的组成
+        \item 厂商 GPU 驱动适配问题
+    \end{itemize}
+\end{frame}
+
+
 \part{从底向上看 GPU 驱动}
 \frame{\partpage}
 
 \begin{frame}
     \frametitle{内核驱动}
-    \begin{block}{众所周知}
+    \begin{block}{“众所周知”}
         只有内核才有直接访问硬件的权限——所谓“用户空间驱动”的存在永远基于内核提供的框架。
     \end{block}
     \begin{itemize}
