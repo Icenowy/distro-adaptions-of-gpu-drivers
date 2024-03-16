@@ -15,14 +15,14 @@
 \begin{frame}
     \frametitle{内容大纲}
     \begin{itemize}
-        \item 从底向上看 GPU 驱动
+        \item 自底向上看 GPU 驱动
         \item 开源 GPU 驱动的组成
         \item 厂商 GPU 驱动适配问题
     \end{itemize}
 \end{frame}
 
 
-\part{从底向上看 GPU 驱动}
+\part{自底向上看 GPU 驱动}
 \frame{\partpage}
 
 \begin{frame}
@@ -80,22 +80,22 @@
 \section{内核接口}
 
 \begin{frame}
-    \frametitle{内核接口：FBDEV}
+    \frametitle{内核接口：FBDEV (Framebuffer Device)}
     \begin{alertblock}{注意：已废弃}
         内核 FBDEV 子系统已废弃，将不会接受新设备驱动支持；DRM 设备仍可提供 FBDEV 兼容设备节点。
     \end{alertblock}
     真·亮机接口。\\
     仅支持 2D 显示一个简单的 Framebuffer ，没有任何现代化的加速功能。\\
-    现在仍旧提供的一大原因是 FBCON 。
+    现在仍旧提供的一大原因是 FBCON (Framebuffer Console)。
 \end{frame}
 
 \begin{frame}
     \frametitle{内核接口：DRM (Direct Rendering Manager)}
     最早为了 3D 渲染加速创造的接口；\\
-    后来随着 KMS （Kernel Mode Setting）的引入，也开始能控制屏幕显示；\\
+    后来随着 KMS (Kernel Mode Setting) 的引入，也开始能控制屏幕显示；\\
     目前开源显示和 GPU 驱动的金标准。\\
     \begin{block}{不同驱动间的接口差异}
-        DRM 驱动的 KMS 部分基本是标准化的（虽然允许扩展）；但是显存管理、任务管理等均为驱动私有 ioctl 接口，由各个驱动自行定义。
+        DRM 驱动的 KMS 部分基本是标准化的（也允许在此基础上扩展）；但是显存管理、任务管理等均为驱动私有 ioctl 接口，由各个驱动自行定义。
     \end{block}
 \end{frame}
 
@@ -152,12 +152,12 @@
     \frametitle{闭源内核驱动：也是一件精细活}
     \begin{block}{众所周知}
         Linux 内核不维护内核内部 API 的稳定性。\\
-        内核会检查 .ko 文件中的版本信息，并会拒绝不匹配的 .ko 文件。
+        内核会检查 .ko 文件中的版本信息及其暴露的 API，并会拒绝不与当前内核匹配的 .ko 文件。
     \end{block}
     发行闭源驱动的方式：
     \begin{itemize}
-        \item 直接丢 .ko 出去——被三体人锁死对应的内核二进制，需要和发行版发布内核的过程同步
-        \item 将重要文件编译成 .o 发布——由于内核 API 不稳定，这些文件中对内核 API 的调用依然不保证能跨内核版本可用
+        \item 直接丢 .ko 出去——被三体人锁死到对应的内核二进制，需要发行版内核的源码，并与发行版发布内核的过程同步
+        \item 将重要文件编译成 .o 发布——由于内核 API 不稳定，这些文件中对内核 API 的调用依然不保证跨内核版本可用
         \item 同上，但精心设计 .o 的导入/导出接口——这种情况能够构造出可以跨内核版本的闭源驱动
     \end{itemize}
 \end{frame}
@@ -165,37 +165,39 @@
 \begin{frame}
     \frametitle{闭源内核驱动：许可证问题}
     \begin{block}{众所周知}
-        Linux 内核使用 GPLv2 授权，有授权传递性问题。
+        Linux 内核使用 GPLv2 许可证释出，有授权传递性问题。
     \end{block}
     虽然闭源驱动并未被 Linux 赶尽杀绝，但它们的生存环境依然十分艰难……\\
-    \begin{block}{EXPORT\_SYMBOL\_GPL}
-        Linux 内核将大量接口以 EXPORT\_SYMBOL\_GPL 这个宏导出，而这样的接口将只能被元数据中声明 GPL 兼容许可证的模块调用。
+    \begin{block}{GPL 符号限制：EXPORT\_SYMBOL\_GPL}
+        Linux 内核将大量接口以 EXPORT\_SYMBOL\_GPL 这个宏导出，而这样的接口将只能被在元数据中声明 GPL 兼容许可证的模块调用。与之相对的则是 EXPORT\_SYMBOL 宏。
     \end{block}
 \end{frame}
 
 \begin{frame}
     \frametitle{闭源内核驱动：接口限制来源}
-    Linux 内核中的 GPL 符号限制源于 GPL 中 \textit{derivative work} 的概念；调用限制 GPL 符号的模块被认为需要被传递 GPL ，所以禁止非 GPL 兼容许可证的模块调用。\\
+    Linux 内核中的 GPL 符号限制源于 GPL 中 \textit{derivative work} 的概念，在后文中，我们将被限制为 GPL 的符号称为“仅 GPL 符号”。\\
+    仅 GPL 符号一旦被一个模块调用，则该模块会被认为受到 GPL 的授权传递性影响，从而将受到 GPL 的约束 ，因此只有声明了 GPL 兼容许可证的模块才可以调用仅 GPL 符号。\\
     一般来说， GPL 符号限制应用于 Linux 中一些较有特色的子系统（虽然此方面并无明确标准）。
 \end{frame}
 
 \begin{frame}
     \frametitle{闭源内核驱动：观赏厂商的表演}
-    为了绕过 Linux 内核所做的限制，各种闭源 GPU 驱动厂商采用了例如下面这些计策：\\
+    为了绕过 Linux 内核所做的限制，各种闭源 GPU 驱动厂商采用了一些计策，常见的有如：\\
     \begin{labeling}{计无付之}
         \item [计无付之] 基于内核允许闭源模块调用的接口苦苦编写驱动
-        \item [掩耳盗铃] 在内核模块元数据中声明 GPL ，即便给出的驱动包含闭源部分
-        \item [画地为牢] 编写额外的声明为 GPL 的内核模块作为闭源代码的包装
+        \item [掩耳盗铃] 在内核模块元数据中声明许可证为 GPL ，即便给出的驱动包含闭源部分
+        \item [画地为牢] 将闭源部分作为一个单独的模块，编写额外的声明为 GPL 的内核模块作为包装，这一包装模块通过同时引用闭源模块和仅 GPL 符号完成驱动的工作
     \end{labeling}
 \end{frame}
 
 \begin{frame}
     \frametitle{闭源内核驱动：绕过手段真的合理吗？}
     \begin{block}{掩耳盗铃}
-        当分发这一“声称为 GPL”的内核模块时，如何满足 GPL 对源码的要求呢？
+        当分发这一“声称为 GPL”的内核模块时，如何满足 GPL 对源码可用性的要求呢？
     \end{block}
     \begin{block}{画地为牢}
-        此方法已失效：内核版本 5.9 起，Linux 内核将引用非 GPL 兼容模块的模块亦作为非 GPL 兼容模块看待，从而无法使用仅 GPL 符号。\\
+        曾被某些厂商使用（现已转投下一页所讲方式实现需要 GPL 的功能）。\\
+        此方法已失效：自 Linux 5.9 起，如果一个 GPL 兼容的模块（“包装模块”）引用了非 GPL 兼容模块，则前者也将被视为非 GPL 兼容模块，从而无法使用仅 GPL 符号。\\
         Greg Kroah-Hartman 锐评：
         \begin{quote}
             Ah, the proven-to-be-illegal "GPL Condom" defense :)
@@ -206,31 +208,31 @@
 \begin{frame}
     \frametitle{内核驱动：开源与闭源的微妙平衡}
     \begin{block}{嵌入式 GPU}
-        嵌入式 GPU 的通常做法是开源（并在芯片 BSP 中附带）的内核驱动配合闭源的用户空间驱动。\\
+        嵌入式 GPU 的通常做法是将需要保密的逻辑编写为用户空间驱动，同时编写开源（并在芯片 BSP 中附带）的内核驱动配合闭源的用户空间驱动的工作。\\
         ARM Mali GPU 同时在他们的开发者网站上公开提供未适配特定 SoC 的内核驱动以作为参考。
     \end{block}
     \begin{block}{NVIDIA 的 open-gpu-kernel-modules}
-        自 Turing （GeForce 系列对应 RTX20/GTX16）起，NVIDIA 在 GPU 中嵌入了 GSP 处理器，从而能够将需要保密的逻辑移动到 GSP 固件中，而内核驱动本身则不必闭源。
+        自 Turing (GeForce 系列对应 RTX20/GTX16) 起，NVIDIA 在 GPU 中嵌入了 GSP 处理器，从而能够将需要保密的逻辑移动到 GSP 固件中，而内核驱动本身则不必闭源。
     \end{block}
 \end{frame}
 
 \begin{frame}
     \frametitle{内核驱动：警惕无序开发 /dev 的行为}
     另外值得注意的是，很多厂商驱动会在标准的 /dev/fbX 和 /dev/dri/ 之外，创建额外的私有设备节点。\\
-    请注意这些私有设备节点的权限，未正确配置可能导致仅 root 用户可以利用 GPU。\\
-    编写额外 Udev 规则可以配置这些设备节点的权限，一般来说归属于 root:video 且权限 660 。\\
-    额外的设备节点接口设计不合理的话，可能成为普通用户可以访问的安全漏洞。\\
+    请注意这些私有设备节点的权限，未正确配置可能导致只有 root 用户可以使用 GPU。\\
+    编写额外 Udev 规则可以配置这些设备节点的权限，一般来说归属于 root:video 且权限掩码为 660 。\\
+    若额外的设备节点接口设计不合理，可能成为无需提权即可利用的安全漏洞。\\
 \end{frame}
 
 \section{API 实现库}
 
 \begin{frame}
     \frametitle{API 实现库：李代桃僵}
-    部分厂商驱动直接提供了替换的 lib\{GL,EGL,GLESv2,gbm\}.so 库文件；例如， NVIDIA 的 340.xx 旧卡驱动。\\
+    部分厂商驱动直接提供了 lib\{GL,EGL,GLESv2,gbm\}.so 用于替换系统原有的 Mesa 库文件；例如 NVIDIA 的 340.xx 旧卡驱动。\\
     这种替换系统库文件的厂商驱动危害如下：\\
     \begin{labeling}{污染二进制文件}
-        \item [污染包管理器] 若不通过包管理器安装，则有驱动被覆盖之虞；若通过包管理安装，则需要打包时引入替换机制。
-        \item [污染二进制文件] 链接可执行文件时，覆盖的系统动态库可能污染可执行文件 ABI 。
+        \item [污染包管理器] 若不通过包管理器安装，则有驱动被覆盖之虞；若通过包管理安装，则需要在打包时引入替换机制。
+        \item [污染二进制文件] 由于系统原有的动态库被覆盖，在链接可执行文件时，可能污染可执行文件的 ABI 。
         \item [无法共存] 由于替换了库文件，多个这类驱动显然无法共存。
     \end{labeling}
 \end{frame}
@@ -238,39 +240,39 @@
 \begin{frame}
     \frametitle{API 实现库：奇技淫巧之侵入 Mesa}
     因为历史原因，Mesa 内部也不是一块钢板——它内部有一个 DRI 接口，提供 *\_dri.so 动态文件供 X 服务器实现 AIGLX 。\\
-    部分闭源驱动，为了避免替换 Mesa 的库文件，选择提供一个接入 DRI 接口的库文件。\\
-    然而很不幸的是，随着 Mesa 之外的 DRI 接口使用逐渐消亡，DRI 接口也逐渐转向 Mesa 内部接口，并被破坏性的简化；而且 DRI 接口从未得到妥善的文档。\\
-    也就是说，随着发行版对 Mesa 的更新，使用 DRI 接口是一种未定义且将来很可能失效的操作。
+    部分闭源驱动，为了规避替换 Mesa 的库文件的诸多弊端，选择提供一个接入 DRI 接口的库文件。\\
+    然而很不幸的是， DRI 接口从未获得妥善的文档；而且随着 Mesa 之外的 DRI 接口使用逐渐消亡，DRI 接口也逐渐转向 Mesa 内部接口，并被破坏性地简化。\\
+    也就是说，使用 DRI 接口是一种未定义的操作，且随着发行版对 Mesa 的更新，这一方法很可能于可预见的将来失效。
 \end{frame}
 
 \begin{frame}
     \frametitle{API 实现库：ICD (Installable Client Driver) 革命}
-    首先定义于 OpenCL 扩展 cl\_khr\_icd ，并被 Vulkan 所继承；类似的机制之后被 NVIDIA 实现于 GL(ES) ，则是 GLVND 。\\
-    ICD 机制下，API 实现与接口得到了分离，应用程序链接到 ICD 加载器库，具体驱动程序则在运行时被选择并加载。\\
-    ICD 驱动程序的安装过程，则是简单的放置一个 json 配置文件和配置文件中对应名称的动态库文件。
+    首先由 OpenCL 扩展 cl\_khr\_icd 提出并定义，随后被 Vulkan 所继承；类似的机制之后还被 NVIDIA 实现于 GL(ES) ，即 GLVND 。\\
+    ICD 机制下，API 实现与接口得到了分离，应用程序只需链接到 ICD 加载器库，由后者负责在运行时选择并加载具体的驱动程序。\\
+    安装一个 ICD 驱动程序是很简捷的：提供驱动的动态库文件，并使用一个 json 配置文件记载这些动态库文件的路径和版本等信息，由此即可被 ICD 加载器库识别。
 \end{frame}
 
 \begin{frame}
     \frametitle{API 实现库：来自移动端的小小震撼}
-    现如今，几乎所有 non-x86 SoC 的渲染/解码子系统和一些新兴厂商的 PCIe GPU ，均采用了某些在移动端更为流行的 GPU IP （Imagination PowerVR ， ARM Mali ， VeriSilicon Vivante 等）。\\
-    非常不幸地，由于这些 GPU IP 现阶段的市场主要在移动端（尤其 Android ），其 API 实现情况大大受移动端生态影响……
+    现如今，几乎所有 non-x86 SoC 的渲染/解码子系统和一些新兴厂商的 PCIe GPU ，均采用了某些在移动端更为流行的 GPU IP （Imagination PowerVR, ARM Mali, VeriSilicon Vivante 等）。\\
+    非常不幸地，由于这些 GPU IP 现阶段主要面向移动端（尤其是 Android ）市场，其 API 实现情况大大受移动端生态影响……
 \end{frame}
 
 \begin{frame}
     \frametitle{API 实现库：没有桌面 GL 的世界}
     \begin{block}{移动端 GPU 驱动的通病}
-        没有桌面版 GL 实现。
+        没有实现桌面版 GL。
     \end{block}
-    此类情况下，通常需要系统为仅使用 GLES 而进行适配。 \\
+    此类情况下，通常需要发行版为仅使用 GLES 提供适配。 \\
     部分应用程序（如 KWin）和库（如 Qt）在编译时可以选择使用 GLES ，而部分库（如 wxWidgets）并不具有可用的 GLES 实现。\\
     \begin{block}{GL4ES}
-        GL4ES 是一个在 GLES 上部分实现桌面 GL API 的包装库；但是很不幸的，它的 Shader 翻译器过于幼稚，以至于大量应用程序无法运行/需要特别适配……
+        GL4ES 是一个在 GLES 上部分实现桌面 GL API 的包装库；但是很不幸地，它的 Shader 翻译器过于幼稚，以至于大量应用程序无法运行/需要特别适配……
     \end{block}
 \end{frame}
 
 \begin{frame}
     \frametitle{API 实现库：Zink，是救赎还是画饼？}
-    Vulkan，作为一种理论上比 GL 更底层的图形 API ，可以在其上实现 GL ——事实上 Mesa 目前包括在 Vulkan 基础上实现 GL 的驱动 Zink 。\\
+    Vulkan，作为一种理论上比 GL 更接近底层的图形 API ，可以在其上实现 GL ——事实上 Mesa 已经提供了一个在 Vulkan 基础上实现 GL API 的驱动，也就是 Zink 。\\
     非常不幸的是，移动端 GPU 驱动的 Vulkan 实现通常不好，在桌面 Linux 上表现尤其差……\\
     \begin{block}{某模拟器开发团队锐评}
         \begin{quote}
@@ -282,8 +284,8 @@
 \begin{frame}
     \frametitle{API 实现库：同样的痛苦，但这次是编解码}
     Android 采用的编解码 API 是 OpenMAX （以下简称 OMX ），很不幸地，这一 API 在 Linux 桌面下应用甚少——Linux 桌面下主要使用的是 VA-API/VDPAU 。\\
-    GStreamer 可以提供对 OMX 的支持，但是很不幸的，大多数多媒体应用软件并不支持 OMX 。\\
-    更加糟糕的消息是，并没有可用的 API 转换层能够将 OMX 的驱动转接到 VA-API/VDPAU……
+    GStreamer 可以提供对 OMX 的支持，但是很不幸地，大多数多媒体应用软件并不支持 OMX 。\\
+    更加糟糕的消息是，并没有可用的 API 转换层能够基于 OMX 驱动提供 VA-API/VDPAU……
 \end{frame}
 
 \section{DDX}
@@ -293,22 +295,22 @@
     \begin{alertblock}{TL;DR}
         为了 Wayland 化的将来考虑，理论上，新的 GPU 驱动不应当使用 DDX 。
     \end{alertblock}
-    DDX 仅是 XFree86 X 服务器的一部分；也就是说，非 X11 的场景下 DDX 起不到丝毫作用。而且，用于 Wayland 的 X11 兼容的 Xwayland 服务器同样不支持 DDX ，而是直接调用 Glamor 。
+    DDX 仅是 XFree86 X 服务器的一部分；也就是说，非 X11 的场景下 DDX 起不到丝毫作用。尽管 Wayland 为了兼容 X11 应用程序，提供了 Xwayland 服务器，但后者同样不支持 DDX ，而选择直接调用 Glamor 完成 2D 加速。
 \end{frame}
 
 \begin{frame}
     \frametitle{DDX：没有了会怎么样？}
-    但是很不幸地是，当下 xf86-video-modesetting / Glamor 亦可能遇到各种问题：
+    但是很不幸地，当下 xf86-video-modesetting / Glamor 亦可能遇到各种问题：
     \begin{itemize}
-        \item 已在 X 服务器 master 得到修复的问题（尚未发版）： modesetting DDX 缺乏双缓冲支持，性能不足时可能出现撕裂；Glamor 对 GLES 的支持有问题，会导致颜色不正确（蓝色变成黄色）。
-        \item Glamor 原理导致的问题： Glamor 大量依赖于 GL 中的 FBO （甚至显示缓冲区本身是用 EGLImage 导入并创建为 FBO 的），对于驱动程序 FBO 处理有着很高的要求，在不完善的驱动程序上可能出现性能问题甚至渲染正确性问题。
+        \item 已在 X 服务器 master 得到修复的问题（尚未发版）： modesetting DDX 缺乏双缓冲支持，在性能不足时可能出现撕裂；Glamor 对 GLES 的支持有问题，会导致颜色不正确（蓝色变成黄色）。
+        \item Glamor 原理导致的问题： Glamor 大量依赖于 GL 中的 FBO （Frame Buffer Object，帧缓冲区对象），以至于显示缓冲区本身都是用 EGLImage 导入并创建为 FBO 的。这对驱动程序的 FBO 处理提出了很高的要求，在不完善的驱动程序上很可能导致性能问题乃至渲染正确性问题。
     \end{itemize}
 \end{frame}
 
 \begin{frame}
     \frametitle{DDX：ABI 版本号}
-    对于试图以闭源方式提供 DDX 模块的人来说，还有一个额外的噩耗：\\
-    DDX 作为 XFree86 X 服务器的内部细节，并不保证 X 服务器大版本之间接口稳定——事实上当下 master 分支的 X 服务器已经具有了和 21.1 分支不同的 ABI 版本号 （26 vs 25）。
+    对于以闭源形式提供 DDX 模块的驱动来说，还有一个额外的噩耗：\\
+    DDX 作为 XFree86 X 服务器的内部细节，并不保证 X 服务器大版本之间的接口稳定性——事实上当下 master 分支的 X 服务器已经具有了和 21.1 分支不同的 ABI 版本号 （26 vs 25）。
 \end{frame}
 
 \part{结语与展望}
@@ -317,7 +319,7 @@
 \begin{frame}
     \frametitle{驱动适配总结}
     \begin{labeling}{用户空间驱动}
-        \item [内核驱动] 两条路：封装核心代码为 .o 文件/直接开源（带固件）
+        \item [内核驱动] 两条路：封装核心代码为 .o 文件/全部开源（可以带有闭源固件）
         \item [用户空间驱动] 感恩的心，感谢 ICD 机制，GL 驱动是时候适配 GLVND 了；纯 GLES 驱动仍然是修罗场
         \item [DDX] 不该有，但现阶段很多时候又不得不有的东西
     \end{labeling}
@@ -334,6 +336,10 @@
         \item 至少给图形库适配 GLVND 并适配桌面 GL（或妥善适配 Vulkan ）
         \item 至少做好 Glamor 优化
     \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \frametitle{鸣谢}
 \end{frame}
 
 \end{document}
